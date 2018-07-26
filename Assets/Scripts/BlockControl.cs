@@ -12,6 +12,19 @@ public class Block {
 		public int y;
 	}
 
+	public enum STEP {
+		NONE = -1,
+		IDLE = 0,
+		GRABBED,
+		RELEASED,
+		SLIDE,
+		VACANT,
+		RESPAWN,
+		FALL,
+		LONG_SLIDE,
+		NUM,
+	}
+
 	public enum COLOR {
 		NONE = -1,
 		PINK = 0,
@@ -45,15 +58,46 @@ public class BlockControl : MonoBehaviour {
 	public Block.COLOR color = (Block.COLOR)0;
 	public BlockRoot block_root = null;
 	public Block.iPosition i_pos;
+	public Block.STEP step = Block.STEP.NONE;
+	public Block.STEP next_step = Block.STEP.NONE;
+	private Vector3 position_offset_initial = Vector3.zero;
+	public Vector3 position_offset = Vector3.zero;
 
 	// Use this for initialization
 	void Start () {
 		this.setColor(this.color);
+		this.next_step = Block.STEP.IDLE;
 	}
 	
 	// Update is called once per frame
 	void Update () {
-		
+		Vector3 mouse_position;
+		this.block_root.unprojectMousePosition(out mouse_position, Input.mousePosition);
+
+		Vector2 mouse_position_xy = new Vector2(mouse_position.x,mouse_position.y);
+
+		while(this.next_step != Block.STEP.NONE){
+			this.step = this.next_step;
+			this.next_step = Block.STEP.NONE;
+
+			switch(this.step){
+				case Block.STEP.IDLE:
+					this.position_offset = Vector3.zero;
+					this.transform.localScale = Vector3.one * 1.0f;
+					break;
+				case Block.STEP.GRABBED:
+					this.transform.localScale = Vector3.one * 1.2f;
+					break;
+				case Block.STEP.RELEASED:
+					this.position_offset = Vector3.zero;
+					this.transform.localScale = Vector3.one * 1.0f;
+					break;
+			}
+		}
+
+		Vector3 position = BlockRoot.calcBlockPosition(this.i_pos) + this.position_offset;
+
+		this.transform.position = position;
 	}
 
 	//색칠
@@ -85,5 +129,42 @@ public class BlockControl : MonoBehaviour {
 
 		//this.renderer.material.color = color_value;
 		GetComponent<Renderer>().material.color = color_value;
+	}
+
+	public void beginGrab(){
+		this.next_step = Block.STEP.GRABBED;
+	}
+
+	public void endGrab(){
+		this.next_step = Block.STEP.IDLE;
+	}
+
+	public bool isGrabbable(){
+		bool is_grabbable = false;
+		switch(this.step){
+			case Block.STEP.IDLE:
+				is_grabbable = true;
+				break;
+		}
+
+		return(is_grabbable);
+	}
+
+	public bool isContainedPosition(Vector2 position){
+		bool ret = false;
+		Vector3 center = this.transform.position;
+		float h = Block.COLLISION_SIZE/2.0f;
+
+		do {
+			if(position.x < center.x-h || center.x + h < position.x){
+				break;
+			}
+			if(position.y < center.y-h || center.y + h < position.y){
+				break;
+			}
+			ret = true;
+		}while(false);
+
+		return(ret);
 	}
 }
